@@ -1,3 +1,18 @@
+# Convert non-ascii quote characters to ascii so the vignette builds
+# on Windows.
+.cleanup <- function(input)
+{
+      seqs <- list(c("e2","80","9c"), c("e2","80","9d"), c("e2","80","93"))
+      for (seq in seqs)
+      {
+            hex <- as.hexmode(seq)
+            mode(hex) <- "raw"
+            r <- rawToChar(hex)
+            input <- gsub(r, '"', input)
+      }
+      input
+}
+
 #' GEOSearchTerm
 #' 
 #' Perform searching in NCBI GEO database.
@@ -30,7 +45,7 @@ GEOSearchTerm <- function(termlist) {
             paste0(names(tmp)[tmp],collapse = ";")
       })
       if (length(uniqueuid) > 0) {
-            rawcontent <- readURL(paste0("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gds&version=2.0&id=",paste0(uniqueuid,collapse = ",")))
+            rawcontent <- .cleanup(readURL(paste0("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gds&version=2.0&id=",paste0(uniqueuid,collapse = ","))))
             blankid <- which(rawcontent=="")
             res <- NULL
             for (i in 1:length(blankid)) {
