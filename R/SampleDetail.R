@@ -21,7 +21,7 @@ SampleDetail <- function(GSEid) {
       allres <- NULL
       for (GSEname in GSEid) {
       sampledata <- readURL(paste0("http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",GSEname,"&targ=gsm&form=text&view=brief"))      
-      breakid <- grep("SAMPLE",sampledata)
+      breakid <- grep("\\^SAMPLE",sampledata)
       
       for (i in 1:length(breakid)) {
             if (i == length(breakid)) {
@@ -44,7 +44,7 @@ SampleDetail <- function(GSEid) {
       }
       }
       colnames(allres) <- c("Experiment","Sample","Title","Type","Source","Organism","Characteristic","Description")
-      allres
+      data.frame(allres,stringsAsFactors = FALSE)
 }
 
 

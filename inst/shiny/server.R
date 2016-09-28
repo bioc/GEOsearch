@@ -5,6 +5,7 @@
 ##           Author:Zhicheng Ji, Hongkai Ji         ##
 ##       Maintainer:Zhicheng Ji (zji4@jhu.edu)      ##
 ######################################################
+library(GEOsearch)
 library(shiny)
 library(DT)
 library(org.Hs.eg.db)
@@ -23,20 +24,28 @@ shinyServer(function(input, output,session) {
                                     tmpterm <- input$searchterm
                               } else {
                                     withProgress(message = 'Seaching Gene Alias...',{
-                                          tmpterm <- termalias(input$searchterm,allspecies = input$searchexpandselectspecies,database=database)                                          
+                                          tmpterm <- TermAlias(input$searchterm,allspecies = input$searchexpandselectspecies)                                          
                                     })
                               }
-                              withProgress(message = 'Compiling GEO Search Results...',{
-                                    Maindata$rawsearchres <- tmp <- GEOsearchterm(tmpterm)
+                              withProgress(message = 'Compiling GEO Search Results for GSE...',{
+                                    Maindata$rawsearchres <- tmp <- GEOSearchTerm(tmpterm,type="GSE")
                               })
                               tmp$Series <- paste0('<a href="http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=',tmp$Series,'" target=_blank>',tmp$Series,'</a>')
-                              SRXname <- sapply(tmp$SRX, function(i) {
-                                    tmp <- strsplit(i,"/")[[1]]
-                                    tmp[length(tmp)]
-                              })
-                              tmp$SRX <- paste0('<a href="',tmp$SRX,'" target=_blank>',SRXname,'</a>')
-                              tmp$Term <- factor(tmp$Term)
-                              Maindata$searchres <- tmp
+                              tmp$Term <- factor(tmp$Term)      
+                              Maindata$searchres <- tmp                              
+                              
+                              if (input$searchGSMTF) {
+                                    withProgress(message = 'Compiling GEO Search Results for GSM...',{
+                                          Maindata$rawsearchresGSM <- tmp <- GEOSearchTerm(tmpterm,type="GSM")
+                                    })
+                                    tmp$Sample <- paste0('<a href="http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=',tmp$Sample,'" target=_blank>',tmp$Sample,'</a>')                                    
+                                    tmp$Series <- sapply(tmp$Series, function(i) {
+                                          tmpSeries <- strsplit(i,",")[[1]]      
+                                          paste(paste0('<a href="http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=',tmpSeries,'" target=_blank>',tmpSeries,'</a>'),collapse = ",")
+                                    })      
+                                    tmp$Term <- factor(tmp$Term)      
+                                    Maindata$searchresGSM <- tmp                              
+                              }                              
                         }    
                   })      
             }            
@@ -44,8 +53,24 @@ shinyServer(function(input, output,session) {
       
       output$searchshowtable <- DT::renderDataTable(
             if (!is.null(Maindata$searchres))
-                  DT::datatable(Maindata$searchres,escape = F,filter='top',rownames = F, extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=4:8)),colVis = list(showAll = "Show all",restore = "Restore")))
-      ) 
+                  DT::datatable(Maindata$searchres,escape = F,filter='top', extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=4:8)),colVis = list(showAll = "Show all",restore = "Restore")))
+      )
+      
+      output$searchshowtableGSM <- DT::renderDataTable(
+            if (!is.null(Maindata$searchresGSM))
+                  DT::datatable(Maindata$searchresGSM,escape = F,filter='top', extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=6:7)),colVis = list(showAll = "Show all",restore = "Restore")))
+      )
+      
+      output$searchshowtableui <- renderUI({
+            if (input$searchGSMTF) {
+                  tabsetPanel(
+                        tabPanel("GSE Series",DT::dataTableOutput("searchshowtable")),
+                        tabPanel("GSM Samples",DT::dataTableOutput("searchshowtableGSM"))
+                  )     
+            } else {
+                  DT::dataTableOutput("searchshowtable")            
+            }            
+      })      
       
       output$searchdownloadbutton <- downloadHandler(
             filename = function() { "Search Results.txt" },
@@ -58,14 +83,25 @@ shinyServer(function(input, output,session) {
             }
       )
       
+      output$searchdownloadGSMbutton <- downloadHandler(
+            filename = function() { "Search Results.txt" },
+            content = function(file) {                  
+                  if (input$searchdownloadGSMselectedparttf) {
+                        write.table(Maindata$rawsearchresGSM[input$searchshowtableGSM_rows_selected,],file=file,quote=F,row.names=F,sep="\t")                        
+                  } else {
+                        write.table(Maindata$rawsearchresGSM,file=file,quote=F,row.names=F,sep="\t")                        
+                  }                  
+            }
+      )
+            
       ### Keyword ###
       
       output$keywordshowkeyword <- DT::renderDataTable(
             if (!is.null(Maindata$searchres)) {
                   withProgress(message = 'Calculating key word frequencies...',{
-                        Maindata$keywordres <- keywordfreq(Maindata$searchres,category = input$keywordselectterm,term)                  
+                        Maindata$keywordres <- KeyWordFreq(Maindata$searchres,category = input$keywordselectterm)                  
                   })
-                  DT::datatable(Maindata$keywordres,filter='top',rownames = F)
+                  DT::datatable(Maindata$keywordres,filter='top')
             }
       )
       
@@ -79,7 +115,7 @@ shinyServer(function(input, output,session) {
                   }                  
                   Maindata$searchreskeyword <- Maindata$searchres[tmp,]
                   Maindata$rawsearchreskeyword <- Maindata$rawsearchres[tmp,]
-                  DT::datatable(Maindata$searchreskeyword,escape = F,filter='top',rownames = F, extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=4:8)),colVis = list(showAll = "Show all",restore = "Restore")))                  
+                  DT::datatable(Maindata$searchreskeyword,escape = F,filter='top', extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=4:8)),colVis = list(showAll = "Show all",restore = "Restore")))                  
             }
       )      
       
@@ -100,19 +136,19 @@ shinyServer(function(input, output,session) {
                   }                  
             }
       )
-            
+      
       ### Sample ###
       
       output$sampleselectui <- renderUI({            
-            if (input$sampleselectmethod=='select1') {
+            if (input$sampleselectmethod=='select1') {                  
                   selectizeInput("GSMsampleselect1","",Maindata$rawsearchres[input$searchshowtable_rows_selected,1],multiple=T)
             } else if (input$sampleselectmethod=='select2') {
                   selectizeInput("GSMsampleselect2","",Maindata$rawsearchreskeyword[input$keywordshowselectsample_rows_selected,1],multiple=T)
             } else {
                   tagList(
                         helpText("Multiple GSE name should be separated by ;"),
-                        textInput("GSMsamplenew","Type GSM name")
-                        )
+                        textInput("GSMsamplenew","Enter GSE name")
+                  )
             }            
       })
       
@@ -129,7 +165,7 @@ shinyServer(function(input, output,session) {
                         }
                         if (!is.null(GSEnamelist)) {
                               withProgress(message = 'Retrieving sample information...',{
-                              Maindata$sampleres <- sampledetail(GSEnamelist)      
+                                    Maindata$sampleres <- SampleDetail(GSEnamelist)      
                               })
                         }                        
                   })
@@ -138,7 +174,7 @@ shinyServer(function(input, output,session) {
       
       output$sampleshowtable <- DT::renderDataTable(
             if (!is.null(Maindata$sampleres))
-                  DT::datatable(Maindata$sampleres,escape = F,filter='top',rownames = F, extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=6:7)),colVis = list(showAll = "Show all",restore = "Restore")))
+                  DT::datatable(Maindata$sampleres,escape = F,filter='top', extensions = 'ColVis', options = list(dom = 'C<"clear">lfrtip',columnDefs = list(list(visible=FALSE, targets=6:7)),colVis = list(showAll = "Show all",restore = "Restore")))
       )
       
       output$sampledownloadbutton <- downloadHandler(
@@ -149,6 +185,31 @@ shinyServer(function(input, output,session) {
                   } else {
                         write.table(Maindata$sampleres,file=file,quote=F,row.names=F,sep="\t")                        
                   }                  
+            }
+      )
+      
+      ### Batch Download ###
+      observe({
+            if (input$Batchrunbutton > 0) {
+                  isolate({
+                        if (!is.null(input$Batchinputtext)) {                                 
+                              withProgress(message = 'Making shell file...',{
+                                    Maindata$batchdownloadres <- BatchDownload(strsplit(input$Batchinputtext,";")[[1]],input$Batchinputpath)
+                              })
+                        }                        
+                  })                  
+            }
+      })
+      
+      output$showbatchdownloadres <- renderText({            
+            if (!is.null(Maindata$batchdownloadres))             
+                  Maindata$batchdownloadres
+      })
+      
+      output$Batchdownloadbutton <- downloadHandler(
+            filename = function() { "Download.sh" },
+            content = function(file) {                                    
+                  writeLines(Maindata$batchdownloadres,file)                                                            
             }
       )
       
