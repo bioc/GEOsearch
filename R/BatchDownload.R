@@ -17,19 +17,6 @@
 #' BatchDownload("GSM1274542")
 
 BatchDownload <- function(namelist, GSMdownloadpath=".") {       
-      readURL <- function(URL) {
-            while(!exists("URLdata")) {
-                  tryCatch(URLdata <- readLines(URL), error = function(e) {}, warning = function(w) {})
-            }      
-            URLdata
-      }
-      mygetURL <- function(URL) {
-            while (!exists("URLdata")) {
-                  tryCatch(URLdata <- getURL(URL,dirlistonly = TRUE), error = function(e) {
-                  })
-            }
-            URLdata
-      }
       findSRX <- function(SRXlink) {
             pathlist <- NULL                        
             allSRRname <- strsplit(mygetURL(SRXlink),"\n")[[1]]            

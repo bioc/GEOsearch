@@ -13,12 +13,6 @@
 #' GEOSearchTerm("Oct4 RNA-seq")
 
 GEOSearchTerm <- function(termlist,type="GSE") {
-      readURL <- function(URL) {
-            while(!exists("URLdata")) {
-                  tryCatch(URLdata <- readLines(URL), error = function(e) {}, warning = function(w) {})
-            }      
-            URLdata
-      }
       uidlist <- sapply(termlist, function(oriterm) {
             searchterm <- gsub(" ","+",oriterm)            
             if (type=="GSE") {
