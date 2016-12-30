@@ -44,7 +44,7 @@ TermAlias <- function(searchterm, allspecies = c("Human","Mouse"), mincount = 5)
                   allname <- allname[-dupname]
                   
                   termcount <- sapply (allname, function(singlename) {
-                        content <- readURL(paste0("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE%5BETYP%5D+",singlename,"&retmax=1"),n=3)
+                        content <- readURL(paste0("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gds&term=GSE%5BETYP%5D+",singlename,"&retmax=1"),n=3)
                         content <- content[3]
                         as.numeric(strsplit(content,"(<Count>)|(</Count>)")[[1]][2])
                   })      
