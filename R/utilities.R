@@ -10,7 +10,7 @@ readURL <- function(URL, n=-1L) {
     if (tries == 3L)
         stop("failed to get URL after 3 tries:",
              "\n  url: ", URL,
-             "\n  error: ", msg)
+             "\n  error: ", conditionMessage(URLdata))
     URLdata
 }
 
@@ -26,6 +26,6 @@ mygetURL <- function(URL) {
     if (tries == 3L)
         stop("failed to get URL after 3 tries:",
              "\n  url: ", URL,
-             "\n  error: ", msg)
+             "\n  error: ", conditionMessage(URLdata))
     URLdata
 }
